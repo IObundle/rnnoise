@@ -395,7 +395,7 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
     spec_variability += mindist;
   }
   features[NB_BANDS+3*NB_DELTA_CEPS+1] = spec_variability/CEPS_MEM-2.1;
-  return TRAINING && E < 0.1;
+  return TRAINING && E1 < 0.1;
 }
 
 static void frame_synthesis(DenoiseState *st, float *out, const kiss_fft_cpx *y) {
