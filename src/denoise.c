@@ -122,7 +122,7 @@ void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
   }
 }
 
-void compute_band_corr(float *bandE, const kiss_fft_cpx *X, const kiss_fft_cpx *P) {
+void compute_band_corr(float *bandE, const kiss_fft_cpx *X, const kiss_fft_cpx *P1) {
   int i;
   float sum[NB_BANDS] = {0};
   for (i=0;i<NB_BANDS-1;i++)
@@ -133,8 +133,8 @@ void compute_band_corr(float *bandE, const kiss_fft_cpx *X, const kiss_fft_cpx *
     for (j=0;j<band_size;j++) {
       float tmp;
       float frac = (float)j/band_size;
-      tmp = X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r * P[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r;
-      tmp += X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i * P[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i;
+      tmp = X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r * P1[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].r;
+      tmp += X[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i * P1[(eband5ms[i]<<FRAME_SIZE_SHIFT) + j].i;
       sum[i] += (1-frac)*tmp;
       sum[i+1] += frac*tmp;
     }
@@ -307,10 +307,10 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const f
   compute_band_energy(Ex, X);
 }
 
-static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P,
+static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P2,
                                   float *Ex, float *Ep, float *Exp, float *features, const float *in) {
   int i;
-  float E = 0;
+  float E1 = 0;
   float *ceps_0, *ceps_1, *ceps_2;
   float spec_variability = 0;
   float Ly[NB_BANDS];
@@ -337,9 +337,9 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
   for (i=0;i<WINDOW_SIZE;i++)
     p[i] = st->pitch_buf[PITCH_BUF_SIZE-WINDOW_SIZE-pitch_index+i];
   apply_window(p);
-  forward_transform(P, p);
-  compute_band_energy(Ep, P);
-  compute_band_corr(Exp, X, P);
+  forward_transform(P2, p);
+  compute_band_energy(Ep, P2);
+  compute_band_corr(Exp, X, P2);
   for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ex[i]*Ep[i]);
   dct(tmp, Exp);
   for (i=0;i<NB_DELTA_CEPS;i++) features[NB_BANDS+2*NB_DELTA_CEPS+i] = tmp[i];
@@ -353,9 +353,9 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
     Ly[i] = MAX16(logMax-7, MAX16(follow-1.5, Ly[i]));
     logMax = MAX16(logMax, Ly[i]);
     follow = MAX16(follow-1.5, Ly[i]);
-    E += Ex[i];
+    E1 += Ex[i];
   }
-  if (!TRAINING && E < 0.04) {
+  if (!TRAINING && E1 < 0.04) {
     /* If there's no audio, avoid messing up the state. */
     RNN_CLEAR(features, NB_FEATURES);
     return 1;
@@ -395,7 +395,7 @@ static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cp
     spec_variability += mindist;
   }
   features[NB_BANDS+3*NB_DELTA_CEPS+1] = spec_variability/CEPS_MEM-2.1;
-  return TRAINING && E < 0.1;
+  return TRAINING && E1 < 0.1;
 }
 
 static void frame_synthesis(DenoiseState *st, float *out, const kiss_fft_cpx *y) {
@@ -419,7 +419,7 @@ static void biquad(float *y, float mem[2], const float *x, const float *b, const
   }
 }
 
-void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, const float *Ep,
+void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P3, const float *Ex, const float *Ep,
                   const float *Exp, const float *g) {
   int i;
   float r[NB_BANDS];
@@ -438,8 +438,8 @@ void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, const
   }
   interp_band_gain(rf, r);
   for (i=0;i<FREQ_SIZE;i++) {
-    X[i].r += rf[i]*P[i].r;
-    X[i].i += rf[i]*P[i].i;
+    X[i].r += rf[i]*P3[i].r;
+    X[i].i += rf[i]*P3[i].i;
   }
   float newE[NB_BANDS];
   compute_band_energy(newE, X);
@@ -458,7 +458,7 @@ void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex, const
 float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   int i;
   kiss_fft_cpx X[FREQ_SIZE];
-  kiss_fft_cpx P[WINDOW_SIZE];
+  kiss_fft_cpx P4[WINDOW_SIZE];
   float x[FRAME_SIZE];
   float Ex[NB_BANDS], Ep[NB_BANDS];
   float Exp[NB_BANDS];
@@ -470,11 +470,11 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   static const float a_hp[2] = {-1.99599, 0.99600};
   static const float b_hp[2] = {-2, 1};
   biquad(x, st->mem_hp_x, in, b_hp, a_hp, FRAME_SIZE);
-  silence = compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
+  silence = compute_frame_features(st, X, P4, Ex, Ep, Exp, features, x);
 
   if (!silence) {
     compute_rnn(&st->rnn, g, &vad_prob, features);
-    pitch_filter(X, P, Ex, Ep, Exp, g);
+    pitch_filter(X, P4, Ex, Ep, Exp, g);
     for (i=0;i<NB_BANDS;i++) {
       float alpha = .6f;
       g[i] = MAX16(g[i], alpha*st->lastg[i]);
