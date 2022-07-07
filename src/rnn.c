@@ -106,54 +106,168 @@ void compute_dense(const DenseLayer *layer, float *output, const float *input)
    }
 }
 
+
 void compute_gru(const GRULayer *gru, float *state, const float *input)
 {
-   int i, j;
-   int N, M;
-   int stride;
-   float z[MAX_NEURONS];
-   float r[MAX_NEURONS];
-   float h[MAX_NEURONS];
-   M = gru->nb_inputs;
-   N = gru->nb_neurons;
-   stride = 3*N;
-   for (i=0;i<N;i++)
-   {
+  int i, j;
+  int N, M;
+  int stride;
+  float z[MAX_NEURONS];
+  float r[MAX_NEURONS];
+  float h[MAX_NEURONS];
+  M = gru->nb_inputs;
+  N = gru->nb_neurons;
+  stride = 3*N;
+  float C_SUM, Bc;
+  unsigned int A;
+
+  for (i=0;i<N;i++)
+    {
       /* Compute update gate. */
       float sum = gru->bias[i];
-      for (j=0;j<M;j++)
-         sum += gru->input_weights[j*stride + i]*input[j];
-      for (j=0;j<N;j++)
-         sum += gru->recurrent_weights[j*stride + i]*state[j];
+      C_SUM = sum;
+      SETC(C_SUM);
+      for (j=0;j<M;j++){
+	//sum += gru->input_weights[j*stride + i]*input[j];
+	A = gru->input_weights[j*stride + i];
+	Bc = input[j];
+	SETA(A);
+	SETB(Bc);
+	C_SUM = GETABC();
+	sum = C_SUM;
+      }
+      for (j=0;j<N;j++){
+	//sum += gru->recurrent_weights[j*stride + i]*state[j];
+	A = gru->recurrent_weights[j*stride + i];
+	Bc = state[j];
+	SETA(A);
+	SETB(Bc);
+	C_SUM = GETABC();
+	sum = C_SUM;
+      }
       z[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
-   }
-   for (i=0;i<N;i++)
-   {
+    }
+  for (i=0;i<N;i++)
+    {
       /* Compute reset gate. */
       float sum = gru->bias[N + i];
-      for (j=0;j<M;j++)
-         sum += gru->input_weights[N + j*stride + i]*input[j];
-      for (j=0;j<N;j++)
-         sum += gru->recurrent_weights[N + j*stride + i]*state[j];
+      C_SUM = sum;
+      SETC(C_SUM);
+      for (j=0;j<M;j++){
+	//sum += gru->input_weights[N + j*stride + i]*input[j];
+	A = gru->input_weights[N + j*stride + i];
+	Bc = input[j];
+	SETA(A);
+	SETB(Bc);
+	C_SUM = GETABC();
+	sum = C_SUM;
+      }
+      for (j=0;j<N;j++){
+	//sum += gru->recurrent_weights[N + j*stride + i]*state[j];
+	A = gru->recurrent_weights[N + j*stride + i];
+	Bc = state[j];
+	SETA(A);
+	SETB(Bc);
+	C_SUM = GETABC();
+	sum = C_SUM;
+      }
       r[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
-   }
-   for (i=0;i<N;i++)
-   {
+    }
+  for (i=0;i<N;i++)
+    {
       /* Compute output. */
       float sum = gru->bias[2*N + i];
-      for (j=0;j<M;j++)
-         sum += gru->input_weights[2*N + j*stride + i]*input[j];
-      for (j=0;j<N;j++)
-         sum += gru->recurrent_weights[2*N + j*stride + i]*state[j]*r[j];
+      C_SUM = sum;
+      SETC(C_SUM);
+      for (j=0;j<M;j++){
+	//sum += gru->input_weights[2*N + j*stride + i]*input[j];
+	A = gru->input_weights[2*N + j*stride + i];
+	Bc = input[j];
+	SETA(A);
+	SETB(Bc);
+	C_SUM = GETABC();
+	sum = C_SUM;
+      }
+      for (j=0;j<N;j++){
+	//sum += gru->recurrent_weights[2*N + j*stride + i]*state[j]*r[j];
+	A = gru->recurrent_weights[2*N + j*stride + i];
+	Bc = state[j]*r[j];
+	SETA(A);
+	SETB(Bc);
+	C_SUM = GETABC();
+	sum = C_SUM;
+      }
       if (gru->activation == ACTIVATION_SIGMOID) sum = sigmoid_approx(WEIGHTS_SCALE*sum);
       else if (gru->activation == ACTIVATION_TANH) sum = tansig_approx(WEIGHTS_SCALE*sum);
       else if (gru->activation == ACTIVATION_RELU) sum = relu(WEIGHTS_SCALE*sum);
       else *(int*)0=0;
       h[i] = z[i]*state[i] + (1-z[i])*sum;
-   }
-   for (i=0;i<N;i++)
-      state[i] = h[i];
+    }
+  for (i=0;i<N;i++)
+    state[i] = h[i];
 }
+
+
+//void compute_gru(const GRULayer *gru, float *state, const float *input)
+//{
+//   int i, j;
+//   int N, M;
+//   int stride;
+//   float z[MAX_NEURONS];
+//   float r[MAX_NEURONS];
+//   float h[MAX_NEURONS];
+//   M = gru->nb_inputs;
+//   N = gru->nb_neurons;
+//   stride = 3*N;
+//
+//
+//
+//   for (i=0;i<N;i++)
+//   {
+//      /* Compute update gate. */
+//      float sum = gru->bias[i];
+//      for (j=0;j<M;j++){
+//	sum += gru->input_weights[j*stride + i]*input[j];
+//      }
+//      for (j=0;j<N;j++){
+//	sum += gru->recurrent_weights[j*stride + i]*state[j];
+//      }
+//      z[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
+//   }
+//   for (i=0;i<N;i++)
+//   {
+//      /* Compute reset gate. */
+//      float sum = gru->bias[N + i];
+//      for (j=0;j<M;j++){
+//	sum += gru->input_weights[N + j*stride + i]*input[j];
+//      }
+//      for (j=0;j<N;j++){
+//	sum += gru->recurrent_weights[N + j*stride + i]*state[j];
+//      }
+//      r[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
+//   }
+//   for (i=0;i<N;i++)
+//   {
+//      /* Compute output. */
+//      float sum = gru->bias[2*N + i];
+//      for (j=0;j<M;j++){
+//	sum += gru->input_weights[2*N + j*stride + i]*input[j];
+//      }
+//      for (j=0;j<N;j++){
+//	sum += gru->recurrent_weights[2*N + j*stride + i]*state[j]*r[j];
+//      }
+//      if (gru->activation == ACTIVATION_SIGMOID) sum = sigmoid_approx(WEIGHTS_SCALE*sum);
+//      else if (gru->activation == ACTIVATION_TANH) sum = tansig_approx(WEIGHTS_SCALE*sum);
+//      else if (gru->activation == ACTIVATION_RELU) sum = relu(WEIGHTS_SCALE*sum);
+//      else *(int*)0=0;
+//      h[i] = z[i]*state[i] + (1-z[i])*sum;
+//   }
+//   for (i=0;i<N;i++)
+//      state[i] = h[i];
+//}
+//
+
+
 
 #define INPUT_SIZE 42
 
