@@ -37,6 +37,7 @@
 #include "rnn.h"
 #include "rnn_data.h"
 #include <stdio.h>
+#include "iob_rnn_acc_swreg.h"
 
 static OPUS_INLINE float tansig_approx(float x)
 {
@@ -117,12 +118,23 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
    M = gru->nb_inputs;
    N = gru->nb_neurons;
    stride = 3*N;
+   uart_puts("to test if it reaches here");
    for (i=0;i<N;i++)
    {
       /* Compute update gate. */
       float sum = gru->bias[i];
-      for (j=0;j<M;j++)
-         sum += gru->input_weights[j*stride + i]*input[j];
+      uart_puts("to test if it reaches here2");
+      IOB_RNN_ACC_SET_C((float)sum);
+      uart_puts("to test if it reaches here3");
+      for (j=0;j<M;j++){
+	/* sum += gru->input_weights[j*stride + i]*input[j]; */ uart_puts("to test if it reaches here in the loop");
+	IOB_RNN_ACC_SET_A(gru->input_weights[j*stride + i]);
+	uart_puts("to test if it reaches here in the loop2");
+	IOB_RNN_ACC_SET_B((float)input[j]);
+	uart_puts("to test if it reaches here loop 3");
+	sum = IOB_RNN_ACC_GET_D();
+	uart_puts("to test if it reaches here after getter");
+      }
       for (j=0;j<N;j++)
          sum += gru->recurrent_weights[j*stride + i]*state[j];
       z[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
