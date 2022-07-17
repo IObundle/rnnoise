@@ -128,25 +128,6 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
    N = gru->nb_neurons;
    stride = 3*N;
 
-   /* IOB_RNN_ACC_SET_ACC_TESTW(int_a); */
-  
-  /* unsigned xxx = IOB_RNN_ACC_GET_ACC_TESTR(); */
-  
-  /* printf(" the XXX is %08x\n the converted %08x\n",int_a,xxx); */
-  
-  /* int thepowplus_2 = 65536; */
-  
-  /* int int_a_b; */
-  /* if (xxx & 0x80000000) { */
-  /*   int_a_b = xxx -1; */
-  /*   int_a_b = invert(int_a_b); */
-  /* }else */
-  /*   int_a_b = xxx; */
-  /* double int_a_f = (double) int_a_b / thepowplus_2; */
-  
-  /* printf(" the XXX after conversion is %f\n",int_a_f); */
-  /* ******************************** */
-
    for (i=0;i<N;i++)
      {
        /* Compute update gate. */
@@ -159,16 +140,16 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
        
        double bbb = sum;
        if (fabs(bbb) < thepow){
-	 bbb = 0.0;
+       	 bbb = 0.0;
        }
        if (bbb <0)
-	 {
-	   bbb = bbb * -1;
-	   int_a = invert((int)(round(bbb * thepowplus))) + 1;
-	 }else
-	 {
-	   int_a = (int)(round(bbb * thepowplus));
-	 }
+       	 {
+       	   bbb = bbb * -1;
+       	   int_a = invert((int)(round(bbb * thepowplus))) + 1;
+       	 }else
+       	 {
+       	   int_a = (int)(round(bbb * thepowplus));
+       	 }
        
        IOB_RNN_ACC_SET_ACC_TESTE(int_a);
        
@@ -257,15 +238,15 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
        
        double int_a_b;
        if (xxx & 0x80000000) {
-	 int_a_b = xxx -1;
-	 int_a_b = invert(int_a_b);
+       	 int_a_b = xxx -1;
+       	 int_a_b = invert(int_a_b);
        }else
-	 int_a_b = xxx;
+       	 int_a_b = xxx;
        double int_a_f = (double) int_a_b / thepowplus_2;
        
        sum = (float)int_a_f;
        /* printf(" the XXX after conversion is %f\n",int_a_f); */
-       /* ******************************** */
+       /* /\* ******************************** *\/ */
        
        /* getter should bve here for sum */
        z[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
@@ -274,23 +255,221 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
      {
        /* Compute reset gate. */
        float sum = gru->bias[N + i];
-       for (j=0;j<M;j++)
-         sum += gru->input_weights[N + j*stride + i]*input[j];
-       for (j=0;j<N;j++)
-         sum += gru->recurrent_weights[N + j*stride + i]*state[j];
-       r[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
-   }
-   
+       /* convert the values to in tto send to the verilog files */
+       int int_a;
+       double thepow = 5.960464477539063e-08;
+       double thepowplus = 16777216;
+       
+       double bbb = sum;
+       if (fabs(bbb) < thepow){
+       	 bbb = 0.0;
+       }
+       if (bbb <0)
+       	 {
+       	   bbb = bbb * -1;
+       	   int_a = invert((int)(round(bbb * thepowplus))) + 1;
+       	 }else
+       	 {
+       	   int_a = (int)(round(bbb * thepowplus));
+       	 }
+       
+       IOB_RNN_ACC_SET_ACC_TESTE(int_a);
+       
 
+       for (j=0;j<M;j++){
+	 /* sum += gru->input_weights[N + j*stride + i]*input[j]; */
+	 int int_a;
+	 double thepow = 5.960464477539063e-08;
+	 double thepowplus = 16777216;
+	 
+	 double bbb = input[j];
+	 if (fabs(bbb) < thepow){
+	   bbb = 0.0;
+	 }
+	 if (bbb <0)
+	   {
+	     bbb = bbb * -1;
+	     int_a = invert((int)(round(bbb * thepowplus))) + 1;
+	     }else
+	   {
+	     int_a = (int)(round(bbb * thepowplus));
+	   }
+	 int enen=1;
+	 IOB_RNN_ACC_SET_ACC_TESTEN(enen);
+	 
+	 IOB_RNN_ACC_SET_ACC_TESTW(gru->input_weights[N + j*stride + i]);
+	 
+	 IOB_RNN_ACC_SET_ACC_TESTE(int_a);
+	 
+	 enen=0;
+	 IOB_RNN_ACC_SET_ACC_TESTEN(enen);
+	 
+       }
+       for (j=0;j<N;j++){
+
+	 int int_a;
+	 double thepow = 5.960464477539063e-08;
+	 double thepowplus = 16777216;
+	 
+	 double bbb = state[j];
+	 if (fabs(bbb) < thepow){
+	   bbb = 0.0;
+	 }
+	 if (bbb <0)
+	   {
+	     bbb = bbb * -1;
+	     int_a = invert((int)(round(bbb * thepowplus))) + 1;
+	   }else
+	   {
+	     int_a = (int)(round(bbb * thepowplus));
+	   }
+	 int enen=1;
+	 IOB_RNN_ACC_SET_ACC_TESTEN(enen);
+	 
+	 IOB_RNN_ACC_SET_ACC_TESTW(gru->recurrent_weights[N + j*stride + i]);
+	 
+	 IOB_RNN_ACC_SET_ACC_TESTE(int_a);
+	 
+	 enen=0;
+	 IOB_RNN_ACC_SET_ACC_TESTEN(enen);
+	 
+	 
+	 
+	 
+	 /* sum += gru->recurrent_weights[N + j*stride + i]*state[j]; */
+       }
+
+       
+       int enen=1;
+       IOB_RNN_ACC_SET_ACC_TESTENREQ(enen);
+       
+       unsigned xxx = IOB_RNN_ACC_GET_ACC_TESTR();
+       
+       enen=0;
+       IOB_RNN_ACC_SET_ACC_TESTENREQ(enen);
+       
+       int thepowplus_2 = 65536;
+       
+       double int_a_b;
+       if (xxx & 0x80000000) {
+       	 int_a_b = xxx -1;
+       	 int_a_b = invert(int_a_b);
+       }else
+       	 int_a_b = xxx;
+       double int_a_f = (double) int_a_b / thepowplus_2;
+       
+       sum = (float)int_a_f;
+       
+       r[i] = sigmoid_approx(WEIGHTS_SCALE*sum);
+     }
+   
+   
    
    for (i=0;i<N;i++)
      {
        /* Compute output. */
        float sum = gru->bias[2*N + i];
-       for (j=0;j<M;j++)
-         sum += gru->input_weights[2*N + j*stride + i]*input[j];
-       for (j=0;j<N;j++)
-         sum += gru->recurrent_weights[2*N + j*stride + i]*state[j]*r[j];
+       
+       /* convert the values to in tto send to the verilog files */
+       int int_a;
+       double thepow = 5.960464477539063e-08;
+       double thepowplus = 16777216;
+       
+       double bbb = sum;
+       if (fabs(bbb) < thepow){
+       	 bbb = 0.0;
+       }
+       if (bbb <0)
+       	 {
+       	   bbb = bbb * -1;
+       	   int_a = invert((int)(round(bbb * thepowplus))) + 1;
+       	 }else
+       	 {
+       	   int_a = (int)(round(bbb * thepowplus));
+       	 }
+       
+       IOB_RNN_ACC_SET_ACC_TESTE(int_a);
+       
+       for (j=0;j<M;j++){
+         /* sum += gru->input_weights[2*N + j*stride + i]*input[j]; */
+	   int int_a;
+	   double thepow = 5.960464477539063e-08;
+	   double thepowplus = 16777216;
+	   
+	   double bbb = input[j];
+	   if (fabs(bbb) < thepow){
+	     bbb = 0.0;
+	   }
+	   if (bbb <0)
+	     {
+	       bbb = bbb * -1;
+	       int_a = invert((int)(round(bbb * thepowplus))) + 1;
+	     }else
+	     {
+	       int_a = (int)(round(bbb * thepowplus));
+	     }
+	   int enen=1;
+	   IOB_RNN_ACC_SET_ACC_TESTEN(enen);
+	   
+	   IOB_RNN_ACC_SET_ACC_TESTW(gru->input_weights[2*N + j*stride + i]);
+	   
+	   IOB_RNN_ACC_SET_ACC_TESTE(int_a);
+	   
+	   enen=0;
+	   IOB_RNN_ACC_SET_ACC_TESTEN(enen);
+
+       }
+       for (j=0;j<N;j++){
+         /* sum += gru->recurrent_weights[2*N + j*stride + i]*state[j]*r[j]; */
+	 int int_a;
+	 double thepow = 5.960464477539063e-08;
+	 double thepowplus = 16777216;
+	 
+	 double bbb = state[j]*r[j];
+	 if (fabs(bbb) < thepow){
+	   bbb = 0.0;
+	 }
+	 if (bbb <0)
+	   {
+	     bbb = bbb * -1;
+	     int_a = invert((int)(round(bbb * thepowplus))) + 1;
+	   }else
+	   {
+	     int_a = (int)(round(bbb * thepowplus));
+	   }
+	 int enen=1;
+	 IOB_RNN_ACC_SET_ACC_TESTEN(enen);
+	 
+	 IOB_RNN_ACC_SET_ACC_TESTW(gru->recurrent_weights[2*N + j*stride + i]);
+	 
+	 IOB_RNN_ACC_SET_ACC_TESTE(int_a);
+	 
+	 enen=0;
+	 IOB_RNN_ACC_SET_ACC_TESTEN(enen);
+	 
+       }
+
+       int enen=1;
+       IOB_RNN_ACC_SET_ACC_TESTENREQ(enen);
+	   
+       unsigned xxx = IOB_RNN_ACC_GET_ACC_TESTR();
+       
+       enen=0;
+       IOB_RNN_ACC_SET_ACC_TESTENREQ(enen);
+       
+       int thepowplus_2 = 65536;
+       
+       double int_a_b;
+       if (xxx & 0x80000000) {
+       	 int_a_b = xxx -1;
+       	 int_a_b = invert(int_a_b);
+       }else
+       	 int_a_b = xxx;
+       double int_a_f = (double) int_a_b / thepowplus_2;
+       
+       sum = (float)int_a_f;
+
+       
        if (gru->activation == ACTIVATION_SIGMOID) sum = sigmoid_approx(WEIGHTS_SCALE*sum);
        else if (gru->activation == ACTIVATION_TANH) sum = tansig_approx(WEIGHTS_SCALE*sum);
        else if (gru->activation == ACTIVATION_RELU) sum = relu(WEIGHTS_SCALE*sum);
