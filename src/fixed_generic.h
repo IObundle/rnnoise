@@ -2,17 +2,22 @@
 #include <math.h>
 #include <limits.h>
 
+
+
 #define PSHR32(a, shift) (SHR32((a)+((EXTEND32(1)<<((shift))>>1)),shift))
 
 #define SHR32(a, shift) ((a)>>(shift))
 
 #define EXTEND32(x) ((opus_val32)(x))
 
-#define SHL32(a, shift) ((opus_int32)((opus_uint32)(a)) << (shift))
+#define SHL32(a, shift) ((a)<<(shift))
+
+/* #define SHL32(a, shift) ((opus_int32)((opus_uint32)(a)) << (shift)) */
 
 #define MULT16_16(a,b) (((opus_val32)(opus_val16)(a))*((opus_val32)(opus_val16)(b)))
 
 #define MULT16_16_Q15(a,b) (SHR(MULT16_16((a),(b)),15))
+
 
 #define SHR(a, shift) ((a) >> (shift))
 
@@ -27,20 +32,34 @@
 
 #define SROUND16(x,a) EXTRACT16(SATURATE(PSHR32(x,a), 32767))
 
-#define SATURATE(x,a) (((x)>(a) ? (a) : (x)<-(a) ? -(a) : (x)))
+/* avoid overflows: a+1 is used to check on negative value because range of a 2n signed bits int is -2pow(n) - 2pow(n)-1 */
+#define SATURATE(x,a) (((x)>(a) ? (a) : (x)<-(a+1) ? -(a+1) : (x)))
 
 #define EXTRACT16(x) ((opus_val16)(x))
 
-#define MULT32_32_Q31(a,b) ADD32(ADD32(SHL(MULT16_16(SHR((a),16),shr((b),16)),1), SHR(MULT16_16SU(SHR((a),16),((b)&0x0000ffff)),15)), SHR(MULT16_16SU(SHR((b),16),((a)&0x0000ffff)),15))
+
+#define SHR64(a, shift) ((a)>>(shift))
+
+
+#define MULT32_32_Q31(a,b) ((opus_val32)(SHR64(((opus_val64)a*(opus_val64)b),31)))
+
+
+/* #define MULT32_32_Q31(a,b) ADD32(ADD32(SHL(MULT16_16(SHR((a),16),shr((b),16)),1), SHR(MULT16_16SU(SHR((a),16),((b)&0x0000ffff)),15)), SHR(MULT16_16SU(SHR((b),16),((a)&0x0000ffff)),15)) */
 
 
 #define MULT16_16SU(a,b) ((opus_val32)(opus_val16)(a)*(opus_val32)(opus_uint16)(b))
 
 
-#define SHL(a,shift) SHL32(a,shift)
+#define SHL(a,shift) ((opus_val32)(a) << (shift))
 
+
+/* #define MULT16_32_Q15(a,b) ADD32(SHL(MULT16_16((a),SHR((b),16)),1), SHR(MULT16_16SU((a),((b)&0x0000ffff)),15)) */
+
+#if OPUS_FAST_INT64
+#define MULT16_32_Q15(a,b) ((opus_val32)SHR((opus_int64)((opus_val16)(a))*(b),15))
+#else
 #define MULT16_32_Q15(a,b) ADD32(SHL(MULT16_16((a),SHR((b),16)),1), SHR(MULT16_16SU((a),((b)&0x0000ffff)),15))
-
+#endif
 
 #define QCONST16(x,bits) ((opus_val16)(.5+(x)*(((opus_val32)1)<<(bits))))
 
@@ -52,7 +71,20 @@
 
 #define VSHR32(a,shift) (((shift)>0) ? SHR32(a,shift) : SHL32(a, -(shift)))
 
+
+
+/* #define MULT16_32_Q16(a,b) ADD32(MULT16_16((a),SHR((b),16)), SHR(MULT16_16SU((a),((b)&0x0000ffff)),16)) */
+
+#if OPUS_FAST_INT64
+#define MULT16_32_Q16(a,b) ((opus_val32)SHR((opus_int64)((opus_val16)(a))*(b),16))
+#else
 #define MULT16_32_Q16(a,b) ADD32(MULT16_16((a),SHR((b),16)), SHR(MULT16_16SU((a),((b)&0x0000ffff)),16))
+#endif
+
+
+#define ADD32(a,b) ((opus_val32)(a)+(opus_val32)(b))
+
+#define SUB32(a,b) ((opus_val32)(a)-(opus_val32)(b))
 
 #define SUB32_ovflw(a,b) ((opus_val32)((opus_uint32)(a)-(opus_uint32)(b)))
 
@@ -60,7 +92,14 @@
 
 #define NEG32_ovflw(a) ((opus_val32)(0-(opus_uint32)(a)))
 
+#define NEG16(x) (-(x))
+
+#define NEG32(x) (-(x))
+
 #define DIV32(a,b) (((opus_val32)(a))/((opus_val32)(b)))
+
+#define DIV32_16(a,b) ((opus_val16)(((opus_val32)(a))/((opus_val16)(b))))
+
 
 #define PI 3.141592653f
 #define celt_sqrt(x) ((float)sqrt(x))
@@ -68,15 +107,7 @@
 #define celt_rsqrt_norm(x) (celt_rsqrt(x))
 #define celt_cos_norm(x) ((float)cos((.5f*PI)*(x)))
 
-  static inline opus_val32 celt_maxabs32(opus_val32 *x, int len)
-{
-   int i;
-   opus_val32 maxval = 0;
-   for (i=0;i<len;i++)
-      maxval = MAX32(maxval, ABS32(x[i]));
-   return maxval;
-}
-static inline opus_val32 celt_maxabs16(const opus_val16 *x, int len)
+static OPUS_INLINE opus_val32 celt_maxabs16(const opus_val16 *x, int len)
 {
    int i;
    opus_val16 maxval = 0;
@@ -87,6 +118,22 @@ static inline opus_val32 celt_maxabs16(const opus_val16 *x, int len)
       minval = MIN16(minval, x[i]);
    }
    return MAX32(EXTEND32(maxval),-EXTEND32(minval));
+}
+
+
+
+
+static OPUS_INLINE opus_val32 celt_maxabs32(const opus_val32 *x, int len)
+{
+   int i;
+   opus_val32 maxval = 0;
+   opus_val32 minval = 0;
+   for (i=0;i<len;i++)
+   {
+      maxval = MAX32(maxval, x[i]);
+      minval = MIN32(minval, x[i]);
+   }
+   return MAX32(maxval, -minval);
 }
 
 

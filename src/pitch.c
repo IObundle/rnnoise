@@ -327,7 +327,7 @@ void pitch_search(const opus_val16 *x_lp, opus_val16 *y,
    /* Coarse search with 4x decimation */
 
 #ifdef FIXED_POINT
-   maxcorr =
+   maxcorr = 0;
 #endif
    celt_pitch_xcorr(x_lp4, y_lp4, xcorr, len>>2, max_pitch>>2);
 
