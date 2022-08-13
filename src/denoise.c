@@ -60,6 +60,8 @@
 
 #define NB_FEATURES (NB_BANDS+3*NB_DELTA_CEPS+2)
 
+#define fixed_fraction 10
+
 
 #ifndef TRAINING
 #define TRAINING 0
@@ -309,22 +311,31 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const f
 
 static int compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P2,
                                   float *Ex, float *Ep, float *Exp, float *features, const float *in) {
+
+  
+  /* inline uint32_t *float_to_fixed(float *input) */
+  /* { */
+  /*   return (uint32_t*)(round(input * (1 << fixed_fraction))); */
+  /* } */
   int i;
   float E1 = 0;
   float *ceps_0, *ceps_1, *ceps_2;
   float spec_variability = 0;
   float Ly[NB_BANDS];
   float p[WINDOW_SIZE];
-  float pitch_buf[PITCH_BUF_SIZE>>1];
+  opus_val16 pitch_buf[PITCH_BUF_SIZE>>1];
   int pitch_index;
   float gain;
-  float *(pre[1]);
+
+  opus_val32 *(pre[1]);
   float tmp[NB_BANDS];
   float follow, logMax;
   frame_analysis(st, X, Ex, in);
   RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
   RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
-  pre[0] = &st->pitch_buf[0];
+
+  pre[0] = (opus_val32 *)(&st->pitch_buf[0]);
+  
   pitch_downsample(pre, pitch_buf, PITCH_BUF_SIZE, 1);
   pitch_search(pitch_buf+(PITCH_MAX_PERIOD>>1), pitch_buf, PITCH_FRAME_SIZE,
                PITCH_MAX_PERIOD-3*PITCH_MIN_PERIOD, &pitch_index);
