@@ -37,14 +37,16 @@
 #include "rnn.h"
 #include "rnn_data.h"
 #include <stdio.h>
-#include "iob_rnn_acc_swreg.h"
 
+#if defined(ACCELERATION) || defined(RUN_EXTMEM) || defined(EMULATION)   
+#include "iob_rnn_acc_swreg.h"
+#endif
 int invert ( int x ){
     
     int res = ~(x) & (int)0x0ffffffff;
     return res;
     
-    };
+    }
 
 
 static OPUS_INLINE float tansig_approx(float x)
@@ -114,10 +116,7 @@ void compute_dense(const DenseLayer *layer, float *output, const float *input)
      *(int*)0=0;
    }
 }
-
-
-#ifdef EMULATION
-
+#ifndef ACCELERATION
 void compute_gru(const GRULayer *gru, float *state, const float *input)
 {
    int i, j;
@@ -197,7 +196,6 @@ void compute_gru(const GRULayer *gru, float *state, const float *input)
 
 
 #else
-
 void compute_gru(const GRULayer *gru, float *state, const float *input)
 {
    int i, j;
