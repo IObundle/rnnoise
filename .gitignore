@@ -53,3 +53,8 @@ src/rnn_data.o
 src/rnn_reader.lo
 src/rnn_reader.o
 stamp-h1
+examples/file.pcm
+examples/out.pcm
+examples/out.wav
+examples/pcm.expected
+examples/Recording.wav
